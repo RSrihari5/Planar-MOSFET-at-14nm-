@@ -1,0 +1,124 @@
+go athena
+
+line x loc=0.000 spac=0.010
+line x loc=0.100 spac=0.005
+line x loc=0.111 spac=0.001
+line x loc=0.118 spac=0.001
+line x loc=0.125 spac=0.001
+
+line y loc=0.000 spac=0.001
+line y loc=0.010 spac=0.002
+line y loc=0.050 spac=0.005
+line y loc=0.150 spac=0.020
+line y loc=0.300 spac=0.050
+
+#Substrate
+init silicon c.boron=5.0e17 orientation=100 two.d
+diffus time=5 minutes temp=850 dryo2
+
+etch oxide left p1.x=0.111
+
+#Halo 
+implant boron dose=2.0e13 energy=10 tilt=45 rotation=0 crystal
+implant boron dose=2.0e13 energy=10 tilt=45 rotation=180 crystal
+
+#Gate Metal Deposition
+deposit titanium thick=0.005 divisions=3
+deposit tungsten thick=0.015 divisions=3
+
+etch tungsten left p1.x=0.118
+
+etch titanium left p1.x=0.118
+
+#Spacers
+deposit nitride thick=0.007 divisions=3
+
+etch nitride left p1.x=0.111
+etch nitride above p1.y=-0.019
+
+#LDD
+implant arsenic dose=5.0e13 energy=1 tilt=0 rotation=0 crystal
+
+#SD Implant
+implant arsenic dose=2.0e15 energy=3 tilt=0 rotation=0 crystal
+
+#RTA
+diffus time=0.001 minutes temp=1050
+
+#Contacts
+deposit aluminum thick=0.02 divisions=3
+
+etch aluminum right p1.x=0.030
+
+#Electrodes
+electrode name=Source x=0.015
+electrode name=Gate   x=0.122
+electrode name=Bulk backside
+
+struct mirror right
+electrode name=Drain x=0.233
+
+struct outfile=nmos.str
+tonyplot nmos.str
+
+go atlas
+
+mesh infile=nmos.str
+
+contact name=Gate workfunction=4.7
+contact name=Source resistance=0
+contact name=Drain resistance=0
+contact name=Bulk
+
+interface qf=5.0e11
+
+material material=Oxide permitt=22
+
+models cvt srh boltzman print temperature=300
+
+mobility bn.cvt=4.75e7 bp.cvt=9.925e6 cn.cvt=1.74e5 cp.cvt=8.842e5 taun.cvt=0.125 taup.cvt=0.0317 gamn.cvt=2.5 gamp.cvt=2.2 mu0n.cvt=52.2 mu0p.cvt=44.9 mu1n.cvt=43.4 mu1p.cvt=29.0 mumaxn.cvt=1417.0 mumaxp.cvt=470.5 crn.cvt=9.68e16 crp.cvt=2.23e17 csn.cvt=3.43e20 csp.cvt=6.10e20 alphn.cvt=0.680 alphp.cvt=0.71 betan.cvt=2.0 betap.cvt=2.0 pcn.cvt=0.0 pcp.cvt=0.23e16 deln.cvt=5.82e14 delp.cvt=2.0546e14
+
+method gummel newton trap maxtraps=20 itlimit=200 climit=1e-12 dvmax=0.1
+
+solve init
+
+solve vgate=0.5 vsource=0 vdrain=0 vbulk=0 outf=solve_tmp1
+solve vgate=0.75 vsource=0 vdrain=0 vbulk=0 outf=solve_tmp2
+solve vgate=1.0 vsource=0 vdrain=0 vbulk=0 outf=solve_tmp3
+
+# nmos1 Vgs=0.5V
+load infile=solve_tmp1
+log outf=nmos1.log master
+solve name=drain vdrain=0.01 vfinal=1.0 vstep=0.03 vbulk=0
+log off
+
+# nmos2 Vgs=0.75V
+load infile=solve_tmp2
+log outf=nmos2.log master
+solve name=drain vdrain=0.01 vfinal=1.0 vstep=0.03 vbulk=0
+log off
+
+# nmos3 Vgs=1.0V
+load infile=solve_tmp3
+log outf=nmos3.log master
+solve name=drain vdrain=0.01 vfinal=1.0 vstep=0.03 vbulk=0
+log off
+
+# Id-Vg linear Vds=0.1V
+solve init
+solve vdrain=0.1 vsource=0 vgate=0 vbulk=0
+log outf=nmos_idvg_lin.log master
+solve name=gate vgate=0 vfinal=1.0 vstep=0.01
+log off
+
+# Id-Vg saturation Vds=1.0V
+solve init
+solve vdrain=1.0 vsource=0 vgate=0 vbulk=0
+log outf=nmos_idvg_sat.log master
+solve name=gate vgate=0 vfinal=1.0 vstep=0.01
+log off
+
+tonyplot -overlay nmos1.log nmos2.log nmos3.log
+tonyplot -overlay nmos_idvg_lin.log nmos_idvg_sat.log
+
+quit
